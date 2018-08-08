@@ -42,6 +42,7 @@ class ConfirmPaymentAction extends Action {
     public function run() {
 
         $request = json_decode(file_get_contents('php://input'));
+        \Yii::warning('[payment notify request Yandex Kassa]:'.print_r($request, true), 'payment'); // remove after debug
 
         $orderModel = \Yii::createObject($this->orderClass);
 
@@ -49,7 +50,7 @@ class ConfirmPaymentAction extends Action {
             throw new HttpException(500, "Модель должна реализовывать интерфейс OrderInterface");
         }
 
-        $order = $orderModel->findByInvoiceId($request->object->id)->one();
+        $order = $orderModel->findByInvoiceId($request->object->id);
 
         if (!$request->object->paid) {
             return false;
