@@ -4,37 +4,49 @@ namespace mikefinch\YandexKassaAPI;
 
 use YandexCheckout\Client;
 use mikefinch\YandexKassaAPI\interfaces\OrderInterface;
+use mikefinch\YandexKassaAPI\interfaces\OrderFiscalizationInterface;
 use yii\base\Component;
 
-
-class YandexKassaAPI  extends Component {
-
+class YandexKassaAPI extends Component
+{
     public $shopId;
     public $key;
     private $client;
     public $returnUrl;
     public $currency = "RUB";
 
-    public function init() {
+    /**
+     * @var boolean Use fiscalization (54-fz) or not (https://kassa.yandex.ru/docs/guides/#oplata-po-54-fz)
+     */
+    public $fiscalization = false;
+
+    public function init()
+    {
         parent::init();
         $this->client = new Client();
         $this->client->setAuth($this->shopId, $this->key);
     }
 
-    public function createPayment(OrderInterface $order) {
+    public function createPayment(OrderInterface $order)
+    {
+        $paymentArray = [
+            'amount' => [
+                'value' => $order->getPaymentAmount(),
+                'currency' => $this->currency
+            ],
+            'confirmation' => [
+                'type' => 'redirect',
+                'return_url' => $this->returnUrl,
+            ],
+        ];
+        if ($this->fiscalization && (($receipt = $this->buildReceipt($order)) !== null)) {
+            $paymentArray['receipt'] = $receipt;
+        }
+
+        \Yii::warning('[Yandex Kassa fiscalization $paymentArray]:' . print_r($paymentArray, true), 'payment'); // remove after debug
 
         $payment = $this->client->createPayment(
-            array(
-                'amount' => array(
-                    'value' => $order->getPaymentAmount(),
-                    'currency' => $this->currency
-                ),
-                'confirmation' => array(
-                    'type' => 'redirect',
-                    'return_url' => $this->returnUrl,
-                ),
-            ),
-            uniqid('', true)
+            $paymentArray, uniqid('', true)
         );
 
         $order->setInvoiceId($payment->getId());
@@ -43,8 +55,8 @@ class YandexKassaAPI  extends Component {
         return $payment;
     }
 
-
-    public function getPayment($invoiceId) {
+    public function getPayment($invoiceId)
+    {
         return $this->client->getPaymentInfo($invoiceId);
     }
 
@@ -53,7 +65,8 @@ class YandexKassaAPI  extends Component {
      * @param $order OrderInterface
      * @return bool
      */
-    public function confirmPayment($invoiceId, OrderInterface $order) {
+    public function confirmPayment($invoiceId, OrderInterface $order)
+    {
         $payment = $this->getPayment($invoiceId);
 
         if ($payment->getPaid()) {
@@ -71,8 +84,38 @@ class YandexKassaAPI  extends Component {
         return false;
     }
 
-    private function generateIdempotent() {
-        return uniqid('', true);
+    /**
+     * Build `receipt` array element
+     * 
+     * @param OrderFiscalizationInterface $order
+     * @return []
+     */
+    protected function buildReceipt(OrderFiscalizationInterface $order)
+    {
+        $receipt = $order->getReceipt();
+
+        $receiptItems = [];
+        foreach ($receipt->getItems() as $item) {
+            $amount = $item->getPrice();
+            $receiptItems[] = [
+                'description' => $item->getDescription(),
+                'quantity' => $item->getQuantity(),
+                'amount' => [
+                    'value' => $amount->getValue(),
+                    'currency' => $amount->getCurrency()
+                ],
+                'vat_code' => $item->getVatCode()
+            ];
+        }
+
+        return [
+            'email' => $receipt->getEmail(),
+            "items" => $receiptItems
+        ];
     }
 
+    private function generateIdempotent()
+    {
+        return uniqid('', true);
+    }
 }
