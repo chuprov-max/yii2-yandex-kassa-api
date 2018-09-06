@@ -19,7 +19,7 @@ class YandexKassaAPI extends Component
      * @var boolean Use fiscalization (54-fz) or not (https://kassa.yandex.ru/docs/guides/#oplata-po-54-fz)
      */
     public $fiscalization = false;
-
+    
     public function init()
     {
         parent::init();
@@ -41,6 +41,10 @@ class YandexKassaAPI extends Component
         ];
         if ($this->fiscalization && (($receipt = $this->buildReceipt($order)) !== null)) {
             $paymentArray['receipt'] = $receipt;
+        }
+        
+        if ($order->getDescription()) {
+            $paymentArray['description'] = $order->getDescription();
         }
 
         \Yii::warning('[Yandex Kassa fiscalization $paymentArray]:' . print_r($paymentArray, true), 'payment'); // remove after debug
