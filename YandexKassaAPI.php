@@ -108,7 +108,9 @@ class YandexKassaAPI extends Component
                     'value' => $amount->getValue(),
                     'currency' => $amount->getCurrency()
                 ],
-                'vat_code' => $item->getVatCode()
+                'vat_code' => $item->getVatCode(),
+                'payment_subject' => $item->getPaymentSubject(),
+                'payment_mode' => $item->getPaymentMode(),
             ];
         }
 
