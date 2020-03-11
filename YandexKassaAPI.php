@@ -38,6 +38,7 @@ class YandexKassaAPI extends Component
                 'type' => 'redirect',
                 'return_url' => $this->returnUrl,
             ],
+            'capture' => true,
         ];
         if ($this->fiscalization && (($receipt = $this->buildReceipt($order)) !== null)) {
             $paymentArray['receipt'] = $receipt;
